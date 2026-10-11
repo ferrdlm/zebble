@@ -26,4 +26,4 @@ built for **hack club shrink** 🩵
 ## 🛼 how to run
 
 1. **from file:** open index.html in any browser.
-2. **from data uri:** copy the full string inside `data-uri.txt` and paste it directly into your browser address bar (chrome recommended).
+2. **from data uri:** copy the full string inside `data-uri.txt` and paste it directly into your browser address bar (chrome recommended)
