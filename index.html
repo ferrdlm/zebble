@@ -41,7 +41,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      z-index: 1;
+      z-index: 0;
     }
     canvas {
       width: 100%;
@@ -99,67 +99,49 @@
     window.addEventListener('resize', resize);
     resize();
 
-    const vs = `
-      attribute vec2 pos;
-      void main() { gl_Position = vec4(pos, 0.0, 1.0); }
-    `;
+    const vs = "attribute vec2 pos; void main() { gl_Position = vec4(pos, 0.0, 1.0); }";
 
-    const fs = `
-      precision highp float;
-      uniform vec2 res;
-      uniform float time;
-      uniform vec2 mouse;
-      uniform float deform;
-
-      mat2 rot(float a) {
-        float c = cos(a), s = sin(a);
-        return mat2(c, -s, s, c);
-      }
-
-      float sdPebble(vec3 p) {
-        p.yz *= rot(mouse.y * 2.0);
-        p.xz *= rot(mouse.x * 2.0);
-        
-        float disp = sin(p.x * 3.0 + time) * cos(p.y * 3.0 + time) * sin(p.z * 3.0) * (0.15 + deform * 0.2);
-        vec3 scaled = p / vec3(1.1, 0.8, 1.0);
-        return (length(scaled) - 0.85 + disp) * 0.7;
-      }
-
-      void main() {
-        vec2 uv = (gl_FragCoord.xy - 0.5 * res) / min(res.x, res.y);
-        vec3 ro = vec3(0.0, 0.0, 3.0);
-        vec3 rd = normalize(vec3(uv, -1.2));
-
-        float t = 0.0;
-        for (int i = 0; i < 48; i++) {
-          vec3 p = ro + rd * t;
-          float d = sdPebble(p);
-          if (d < 0.001 || t > 5.0) break;
-          t += d;
-        }
-
-        vec3 col = vec3(0.968, 0.956, 0.933);
-
-        if (t < 5.0) {
-          vec3 p = ro + rd * t;
-          vec2 e = vec2(0.002, 0.0);
-          vec3 n = normalize(vec3(
-            sdPebble(p + e.xyy) - sdPebble(p - e.xyy),
-            sdPebble(p + e.yxy) - sdPebble(p - e.yxy),
-            sdPebble(p + e.yyx) - sdPebble(p - e.yyx)
-          ));
-
-          vec3 lightDir = normalize(vec3(1.0, 2.0, 2.0));
-          float diff = max(dot(n, lightDir), 0.0);
-          float rim = pow(1.0 - max(dot(-rd, n), 0.0), 3.0);
-          
-          vec3 pebbleColor = mix(vec3(0.92, 0.88, 0.85), vec3(0.96, 0.85, 0.82), deform);
-          col = pebbleColor * (0.4 + 0.6 * diff) + vec3(0.98, 0.95, 0.92) * rim * 0.5;
-        }
-
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `;
+    const fs = "precision highp float;" +
+      "uniform vec2 res;" +
+      "uniform float time;" +
+      "uniform vec2 mouse;" +
+      "uniform float deform;" +
+      "mat2 rot(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }" +
+      "float sdPebble(vec3 p) {" +
+      "  p.yz *= rot(mouse.y * 2.0);" +
+      "  p.xz *= rot(mouse.x * 2.0);" +
+      "  float disp = sin(p.x * 3.0 + time) * cos(p.y * 3.0 + time) * sin(p.z * 3.0) * (0.15 + deform * 0.2);" +
+      "  vec3 scaled = p / vec3(1.1, 0.8, 1.0);" +
+      "  return (length(scaled) - 0.85 + disp) * 0.7;" +
+      "}" +
+      "void main() {" +
+      "  vec2 uv = (gl_FragCoord.xy - 0.5 * res) / min(res.x, res.y);" +
+      "  vec3 ro = vec3(0.0, 0.0, 3.0);" +
+      "  vec3 rd = normalize(vec3(uv, -1.2));" +
+      "  float t = 0.0;" +
+      "  for (int i = 0; i < 48; i++) {" +
+      "    vec3 p = ro + rd * t;" +
+      "    float d = sdPebble(p);" +
+      "    if (d < 0.001 || t > 5.0) break;" +
+      "    t += d;" +
+      "  }" +
+      "  vec3 col = vec3(0.968, 0.956, 0.933);" +
+      "  if (t < 5.0) {" +
+      "    vec3 p = ro + rd * t;" +
+      "    vec2 e = vec2(0.002, 0.0);" +
+      "    vec3 n = normalize(vec3(" +
+      "      sdPebble(p + e.xyy) - sdPebble(p - e.xyy)," +
+      "      sdPebble(p + e.yxy) - sdPebble(p - e.yxy)," +
+      "      sdPebble(p + e.yyx) - sdPebble(p - e.yyx)" +
+      "    ));" +
+      "    vec3 lightDir = normalize(vec3(1.0, 2.0, 2.0));" +
+      "    float diff = max(dot(n, lightDir), 0.0);" +
+      "    float rim = pow(1.0 - max(dot(-rd, n), 0.0), 3.0);" +
+      "    vec3 pebbleColor = mix(vec3(0.92, 0.88, 0.85), vec3(0.96, 0.85, 0.82), deform);" +
+      "    col = pebbleColor * (0.4 + 0.6 * diff) + vec3(0.98, 0.95, 0.92) * rim * 0.5;" +
+      "  }" +
+      "  gl_FragColor = vec4(col, 1.0);" +
+      "}";
 
     function createShader(gl, type, src) {
       const s = gl.createShader(type);
