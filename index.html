@@ -74,9 +74,29 @@
   </style>
 </head>
 <body>
-    <header>
-        <h1>zebble
-        </h1>
-    </header>
+  <header>
+    <h1>zebble</h1>
+    <p>drag to rotate & deform • touch to play 432hz tones</p>
+  </header>
+
+  <div id="canvas-container">
+    <canvas id="gl"></canvas>
+  </div>
+
+  <footer>
+    <button id="copy-btn">copy data uri 📋</button>
+  </footer>
+
+  <script>
+    const canvas = document.getElementById('gl');
+    const gl = canvas.getContext('webgl');
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    
+  </script>
 </body>
 </html>
