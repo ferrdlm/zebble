@@ -5,83 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>zebble</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin:0; padding:0; box-sizing:border-box }
     body {
-      background: #f7f4ee;
-      color: #33322e;
-      font-family: serif, system-ui, -apple-system;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-      padding: 2rem 1.5rem;
-      user-select: none;
+      background:#f7f4ee; color:#33322e; font-family:serif,system-ui;
+      height:100vh; overflow:hidden; display:flex; flex-direction:column;
+      align-items:center; justify-content:space-between; padding:2rem 1.5rem; user-select:none;
     }
-    header {
-      text-align: center;
-      z-index: 10;
-    }
-    h1 {
-      font-weight: 400;
-      font-size: 1.4rem;
-      letter-spacing: -0.04em;
-      color: #2b2a26;
-      margin-bottom: 0.3rem;
-    }
-    p {
-      font-size: 0.85rem;
-      color: #8c887d;
-      letter-spacing: -0.01em;
-    }
-    #c {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      z-index: 0;
-    }
-    canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-    footer {
-      z-index: 10;
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-    }
+    header { text-align:center; z-index:10 }
+    h1 { font-weight:400; font-size:1.4rem; letter-spacing:-.04em; color:#2b2a26; margin-bottom:.3rem }
+    p { font-size:.85rem; color:#8c887d; letter-spacing:-.01em }
+    #c { position:absolute; inset:0; z-index:0 }
+    canvas { width:100%; height:100%; display:block }
+    footer { z-index:10 }
     button {
-      background: #ffffff90;
-      backdrop-filter: blur(8px);
-      border: 1px solid #e0dad0;
-      padding: 0.6rem 1.2rem;
-      border-radius: 99px;
-      color: #4a473f;
-      font-size: 0.8rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-family: inherit;
+      background:#ffffff90; backdrop-filter:blur(8px); border:1px solid #e0dad0;
+      padding:.6rem 1.2rem; border-radius:99px; color:#4a473f; font-size:.8rem;
+      cursor:pointer; transition:all .2s; font-family:inherit;
     }
-    button:hover {
-      background: #ffffff;
-      border-color: #b0a898;
-      transform: translateY(-1px);
-    }
+    button:hover { background:#fff; border-color:#b0a898; transform:translateY(-1px) }
   </style>
 </head>
 <body>
   <header>
     <h1>zebble</h1>
-    <p>drag to rotate & deform • touch to play 432hz tones</p>
+    <p>drag to rotate &amp; deform • touch to play 432hz tones</p>
   </header>
 
-  <div id="c">
-    <canvas id="gl"></canvas>
-  </div>
+  <div id="c"><canvas id="gl"></canvas></div>
 
   <footer>
     <button id="cb">copy data uri</button>
@@ -91,140 +41,113 @@
     const C = document.getElementById('gl');
     const gl = C.getContext('webgl');
 
-    function R() {
+    const R = () => {
       C.width = window.innerWidth;
       C.height = window.innerHeight;
       gl.viewport(0, 0, C.width, C.height);
-    }
-    window.onresize = R;
-    R();
+    };
+    window.onresize = R; R();
 
-    const vs = "attribute vec2 pos; void main() { gl_Position = vec4(pos, 0.0, 1.0); }";
+    const vs = "attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}";
+    const fs = "precision mediump float;uniform vec2 R,M;uniform float T,D;" +
+      "mat2 r(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}" +
+      "float S(vec3 p){p.yz*=r(M.y*2.);p.xz*=r(M.x*2.);" +
+      "return(length(p/vec3(1.1,.8,1.))-.85+sin(p.x*3.+T)*cos(p.y*3.+T)*sin(p.z*3.)*(.15+D*.2))*.7;}" +
+      "void main(){vec2 u=(gl_FragCoord.xy-.5*R)/min(R.x,R.y);" +
+      "vec3 o=vec3(0,0,3),d=normalize(vec3(u,-1.2));float t=0.;" +
+      "for(int i=0;i<40;i++){float h=S(o+d*t);if(h<.001||t>5.)break;t+=h;}" +
+      "vec3 c=vec3(.968,.956,.933);" +
+      "if(t<5.){vec3 p=o+d*t,e=vec3(.002,0,0),n=normalize(vec3(S(p+e.xyy)-S(p-e.xyy),S(p+e.yxy)-S(p-e.yxy),S(p+e.yyx)-S(p-e.yyx))),L=normalize(vec3(1,2,2));" +
+      "float df=max(dot(n,L),0.),rm=pow(1.-max(dot(-d,n),0.),3.);" +
+      "c=mix(vec3(.92,.88,.85),vec3(.96,.85,.82),D)*(.4+.6*df)+vec3(.98,.95,.92)*rm*.5;}" +
+      "gl_FragColor=vec4(c,1);}";
 
-    const fs = "precision highp float;" +
-      "uniform vec2 res;" +
-      "uniform float time;" +
-      "uniform vec2 mouse;" +
-      "uniform float deform;" +
-      "mat2 rot(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }" +
-      "float sd(vec3 p) {" +
-      "  p.yz *= rot(mouse.y * 2.0);" +
-      "  p.xz *= rot(mouse.x * 2.0);" +
-      "  float d = sin(p.x * 3.0 + time) * cos(p.y * 3.0 + time) * sin(p.z * 3.0) * (0.15 + deform * 0.2);" +
-      "  return (length(p / vec3(1.1, 0.8, 1.0)) - 0.85 + d) * 0.7;" +
-      "}" +
-      "void main() {" +
-      "  vec2 uv = (gl_FragCoord.xy - 0.5 * res) / min(res.x, res.y);" +
-      "  vec3 ro = vec3(0.0, 0.0, 3.0);" +
-      "  vec3 rd = normalize(vec3(uv, -1.2));" +
-      "  float t = 0.0;" +
-      "  for (int i = 0; i < 48; i++) {" +
-      "    vec3 p = ro + rd * t;" +
-      "    float d = sd(p);" +
-      "    if (d < 0.001 || t > 5.0) break;" +
-      "    t += d;" +
-      "  }" +
-      "  vec3 col = vec3(0.968, 0.956, 0.933);" +
-      "  if (t < 5.0) {" +
-      "    vec3 p = ro + rd * t;" +
-      "    vec2 e = vec2(0.002, 0.0);" +
-      "    vec3 n = normalize(vec3(" +
-      "      sd(p + e.xyy) - sd(p - e.xyy)," +
-      "      sd(p + e.yxy) - sd(p - e.yxy)," +
-      "      sd(p + e.yyx) - sd(p - e.yyx)" +
-      "    ));" +
-      "    vec3 L = normalize(vec3(1.0, 2.0, 2.0));" +
-      "    float diff = max(dot(n, L), 0.0);" +
-      "    float rim = pow(1.0 - max(dot(-rd, n), 0.0), 3.0);" +
-      "    col = mix(vec3(0.92, 0.88, 0.85), vec3(0.96, 0.85, 0.82), deform) * (0.4 + 0.6 * diff) + vec3(0.98, 0.95, 0.92) * rim * 0.5;" +
-      "  }" +
-      "  gl_FragColor = vec4(col, 1.0);" +
-      "}";
-
-    function cS(g, t, s) {
-      const h = g.createShader(t);
-      g.shaderSource(h, s);
-      g.compileShader(h);
-      return h;
-    }
+    const sh = (t, s) => {
+      const h = gl.createShader(t);
+      gl.shaderSource(h, s); gl.compileShader(h); return h;
+    };
 
     const P = gl.createProgram();
-    gl.attachShader(P, cS(gl, gl.VERTEX_SHADER, vs));
-    gl.attachShader(P, cS(gl, gl.FRAGMENT_SHADER, fs));
-    gl.linkProgram(P);
-    gl.useProgram(P);
+    gl.attachShader(P, sh(gl.VERTEX_SHADER, vs));
+    gl.attachShader(P, sh(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(P); gl.useProgram(P);
 
     const B = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, B);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
 
-    const pA = gl.getAttribLocation(P, 'pos');
+    const pA = gl.getAttribLocation(P, 'p');
     gl.enableVertexAttribArray(pA);
     gl.vertexAttribPointer(pA, 2, gl.FLOAT, false, 0, 0);
 
-    const uRes = gl.getUniformLocation(P, 'res');
-    const uTime = gl.getUniformLocation(P, 'time');
-    const uMouse = gl.getUniformLocation(P, 'mouse');
-    const uDeform = gl.getUniformLocation(P, 'deform');
+    const uR = gl.getUniformLocation(P, 'R');
+    const uT = gl.getUniformLocation(P, 'T');
+    const uM = gl.getUniformLocation(P, 'M');
+    const uD = gl.getUniformLocation(P, 'D');
 
-    let mouse = { x: 0, y: 0, tx: 0, ty: 0 };
-    let isD = false;
-    let def = 0;
-    let A = null;
+    let mx = 0, my = 0, tx = 0, ty = 0, drag = false, def = 0, actx = null;
+    const notes = [216, 288, 324, 432, 576, 648, 864];
 
-    const S = [216, 288, 324, 432, 576, 648, 864];
-
-    function pT(f) {
-      if (!A) {
-        A = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (A.state === 'suspended') {
-        A.resume();
-      }
-
-      const o = A.createOscillator();
-      const g = A.createGain();
-
-      o.type = 'sine';
-      o.frequency.value = f;
-
-      const n = A.currentTime;
+    function play(f) {
+      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const n = actx.currentTime;
       g.gain.setValueAtTime(0, n);
-      g.gain.linearRampToValueAtTime(0.12, n + 0.08);
-      g.gain.exponentialRampToValueAtTime(0.0001, n + 1.8);
-
-      o.connect(g);
-      g.connect(A.destination);
-
-      o.start(n);
-      o.stop(n + 1.8);
+      g.gain.linearRampToValueAtTime(.12, n + .08);
+      g.gain.exponentialRampToValueAtTime(1e-4, n + 1.8);
+      o.connect(g); g.connect(actx.destination);
+      o.start(n); o.stop(n + 1.8);
     }
 
-    function uI(x, y, a = false) {
-      mouse.tx = (x / window.innerWidth) * 2 - 1;
-      mouse.ty = -(y / window.innerHeight) * 2 + 1;
-      def = 1;
-
-      if (a) {
-        const k = Math.floor((x / window.innerWidth) * S.length);
-        pT(S[k % S.length]);
-      }
+    function input(x, y, snd = false) {
+      tx = (x / window.innerWidth) * 2 - 1;
+      ty = -(y / window.innerHeight) * 2 + 1;
+      def = 1.0;
+      if (snd) play(notes[Math.floor((x / window.innerWidth) * notes.length) % notes.length]);
     }
 
-    window.onmousedown = (e) => { isD = true; uI(e.clientX, e.clientY, true); };
-    window.onmousemove = (e) => { if (isD) uI(e.clientX, e.clientY, false); };
-    window.onmouseup = () => { isD = false; };
+    window.onmousedown = (e) => { drag = true; input(e.clientX, e.clientY, true); };
+    window.onmousemove = (e) => { if (drag) input(e.clientX, e.clientY, false); };
+    window.onmouseup = () => { drag = false; };
 
     window.ontouchstart = (e) => {
-      isD = true;
-      if (e.touches[0]) uI(e.touches[0].clientX, e.touches[0].clientY, true);
+      drag = true;
+      if (e.touches[0]) input(e.touches[0].clientX, e.touches[0].clientY, true);
     };
     window.ontouchmove = (e) => {
-      if (isD && e.touches[0]) uI(e.touches[0].clientX, e.touches[0].clientY, false);
+      if (drag && e.touches[0]) input(e.touches[0].clientX, e.touches[0].clientY, false);
     };
-    window.ontouchend = () => { isD = false; };
+    window.ontouchend = () => { drag = false; };
 
-    let st = performance.now();
+    let t0 = performance.now();
+    function loop() {
+      const t = (performance.now() - t0) * 0.001;
+      mx += (tx - mx) * 0.05; my += (ty - my) * 0.05; def *= 0.95;
 
-    function ren() {
-      const t = (performance.
+      gl.uniform2f(uR, C.width, C.height);
+      gl.uniform1f(uT, t);
+      gl.uniform2f(uM, mx, my);
+      gl.uniform1f(uD, def);
+
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      requestAnimationFrame(loop);
+    }
+    loop();
+
+    document.getElementById('cb').onclick = () => {
+      const html = document.documentElement.outerHTML
+        .replace(/\n/g, '')
+        .replace(/\s+/g, ' ')
+        .replace(/> </g, '><');
+      const dataUri = 'data:text/html,' + encodeURIComponent(html);
+      navigator.clipboard.writeText(dataUri).then(() => {
+        const btn = document.getElementById('cb');
+        btn.innerText = 'copied!';
+        setTimeout(() => btn.innerText = 'copy data uri', 2000);
+      });
+    };
+  </script>
+</body>
+</html>
