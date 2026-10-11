@@ -84,7 +84,7 @@
   </div>
 
   <footer>
-    <button id="copy-btn">copy data uri 📋</button>
+    <button id="copy-btn">copy data uri</button>
   </footer>
 
   <script>
@@ -96,7 +96,187 @@
       canvas.height = window.innerHeight;
       gl.viewport(0, 0, canvas.width, canvas.height);
     }
-    
+    window.addEventListener('resize', resize);
+    resize();
+
+    const vs = `
+      attribute vec2 pos;
+      void main() { gl_Position = vec4(pos, 0.0, 1.0); }
+    `;
+
+    const fs = `
+      precision highp float;
+      uniform vec2 res;
+      uniform float time;
+      uniform vec2 mouse;
+      uniform float deform;
+
+      mat2 rot(float a) {
+        float c = cos(a), s = sin(a);
+        return mat2(c, -s, s, c);
+      }
+
+      float sdPebble(vec3 p) {
+        p.yz *= rot(mouse.y * 2.0);
+        p.xz *= rot(mouse.x * 2.0);
+        
+        float disp = sin(p.x * 3.0 + time) * cos(p.y * 3.0 + time) * sin(p.z * 3.0) * (0.15 + deform * 0.2);
+        vec3 scaled = p / vec3(1.1, 0.8, 1.0);
+        return (length(scaled) - 0.85 + disp) * 0.7;
+      }
+
+      void main() {
+        vec2 uv = (gl_FragCoord.xy - 0.5 * res) / min(res.x, res.y);
+        vec3 ro = vec3(0.0, 0.0, 3.0);
+        vec3 rd = normalize(vec3(uv, -1.2));
+
+        float t = 0.0;
+        for (int i = 0; i < 48; i++) {
+          vec3 p = ro + rd * t;
+          float d = sdPebble(p);
+          if (d < 0.001 || t > 5.0) break;
+          t += d;
+        }
+
+        vec3 col = vec3(0.968, 0.956, 0.933);
+
+        if (t < 5.0) {
+          vec3 p = ro + rd * t;
+          vec2 e = vec2(0.002, 0.0);
+          vec3 n = normalize(vec3(
+            sdPebble(p + e.xyy) - sdPebble(p - e.xyy),
+            sdPebble(p + e.yxy) - sdPebble(p - e.yxy),
+            sdPebble(p + e.yyx) - sdPebble(p - e.yyx)
+          ));
+
+          vec3 lightDir = normalize(vec3(1.0, 2.0, 2.0));
+          float diff = max(dot(n, lightDir), 0.0);
+          float rim = pow(1.0 - max(dot(-rd, n), 0.0), 3.0);
+          
+          vec3 pebbleColor = mix(vec3(0.92, 0.88, 0.85), vec3(0.96, 0.85, 0.82), deform);
+          col = pebbleColor * (0.4 + 0.6 * diff) + vec3(0.98, 0.95, 0.92) * rim * 0.5;
+        }
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+
+    function createShader(gl, type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+    }
+
+    const prog = gl.createProgram();
+    gl.attachShader(prog, createShader(gl, gl.VERTEX_SHADER, vs));
+    gl.attachShader(prog, createShader(gl, gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(prog);
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+    const posAttr = gl.getAttribLocation(prog, 'pos');
+    gl.enableVertexAttribArray(posAttr);
+    gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
+
+    const uRes = gl.getUniformLocation(prog, 'res');
+    const uTime = gl.getUniformLocation(prog, 'time');
+    const uMouse = gl.getUniformLocation(prog, 'mouse');
+    const uDeform = gl.getUniformLocation(prog, 'deform');
+
+    let mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
+    let isDragging = false;
+    let deformVal = 0;
+
+    let audioCtx = null;
+    const scale = [216, 288, 324, 432, 576, 648, 864];
+
+    function playTone(freq) {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+
+      const now = audioCtx.currentTime;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.12, now + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + 1.8);
+    }
+
+    function updateInput(x, y, triggerAudio = false) {
+      mouse.targetX = (x / window.innerWidth) * 2 - 1;
+      mouse.targetY = -(y / window.innerHeight) * 2 + 1;
+      deformVal = 1.0;
+
+      if (triggerAudio) {
+        const noteIndex = Math.floor((x / window.innerWidth) * scale.length);
+        playTone(scale[noteIndex % scale.length]);
+      }
+    }
+
+    window.addEventListener('mousedown', (e) => { isDragging = true; updateInput(e.clientX, e.clientY, true); });
+    window.addEventListener('mousemove', (e) => { if (isDragging) updateInput(e.clientX, e.clientY, false); });
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    window.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      if (e.touches[0]) updateInput(e.touches[0].clientX, e.touches[0].clientY, true);
+    });
+    window.addEventListener('touchmove', (e) => {
+      if (isDragging && e.touches[0]) updateInput(e.touches[0].clientX, e.touches[0].clientY, false);
+    });
+    window.addEventListener('touchend', () => { isDragging = false; });
+
+    let startTime = performance.now();
+
+    function render() {
+      const time = (performance.now() - startTime) * 0.001;
+
+      mouse.x += (mouse.targetX - mouse.x) * 0.05;
+      mouse.y += (mouse.targetY - mouse.y) * 0.05;
+      deformVal *= 0.95;
+
+      gl.uniform2f(uRes, canvas.width, canvas.height);
+      gl.uniform1f(uTime, time);
+      gl.uniform2f(uMouse, mouse.x, mouse.y);
+      gl.uniform1f(uDeform, deformVal);
+
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      requestAnimationFrame(render);
+    }
+    render();
+
+    document.getElementById('copy-btn').addEventListener('click', () => {
+      const htmlContent = document.documentElement.outerHTML;
+      const minified = htmlContent
+        .replace(/\n/g, '')
+        .replace(/\s+/g, ' ')
+        .replace(/> </g, '><');
+      const dataUri = 'data:text/html,' + encodeURIComponent(minified);
+      
+      navigator.clipboard.writeText(dataUri).then(() => {
+        const btn = document.getElementById('copy-btn');
+        btn.innerText = 'copied data uri!';
+        setTimeout(() => btn.innerText = 'copy data uri', 2000);
+      });
+    });
   </script>
 </body>
 </html>
