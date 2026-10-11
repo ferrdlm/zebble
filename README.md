@@ -11,7 +11,7 @@ built for **hack club shrink** 🩵
 - **3d raymarched pebble:** real time sdf pebble rendering with soft organic rim lighting using pure raw webgl.
 - **interactive deformation:** drag or touch to rotate, squish, and ripple the pebble surface dynamically.
 - **432hz harmonic audio:** tap anywhere across the canvas to play ambient sine wave tones tuned to 432hz harmonic notes.
-- **extreme size constraint:** the entire experience (html, css, webgl shaders, web audio api logic) is packed under 3,072 bytes in a data:text/html,... string.
+- **extreme size constraint:** the entire experience (html, css, webgl shaders, web audio api logic) is packed under 3,072 bytes in a `data:text/html,...` string.
 
 ---
 
