@@ -1,1 +1,139 @@
-<!DOCTYPE html><title>zebble</title><style>*{margin:0}body{background:#f7f4ee;color:#333;font-family:serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:2rem;overflow:hidden}header{text-align:center}h1{font-weight:400;font-size:1.4rem;letter-spacing:-.04em;color:#2b2a26}p{font-size:.85rem;color:#8c887d}canvas{position:absolute;inset:0}button{z-index:1;background:#fff9;border:1px solid #e0dad0;padding:.6rem 1.2rem;border-radius:99px;cursor:pointer;color:#4a473f}</style><header><h1>zebble</h1><p>drag to rotate &amp; deform • touch for 432hz</p></header><canvas id=g></canvas><button id=b>copy data uri</button><script>x=g.getContext('webgl');R=()=>{g.width=innerWidth;g.height=innerHeight;x.viewport(0,0,g.width,g.height)};onresize=R;R();P=x.createProgram();w=(t,s)=>{h=x.createShader(t);x.shaderSource(h,s);x.compileShader(h);x.attachShader(P,h)};w(35633,"attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}");w(35632,'precision mediump float;uniform vec2 R,M;uniform float T,D;mat2 r(float a){return mat2(cos(a),-sin(a),sin(a),cos(a));}float S(vec3 p){p.yz*=r(M.y*2.);p.xz*=r(M.x*2.);return(length(p/vec3(1.1,.8,1.))-.85+sin(p.x*3.+T)*cos(p.y*3.+T)*sin(p.z*3.)*(.15+D*.2))*.7;}void main(){vec2 u=(gl_FragCoord.xy-.5*R)/R.y,o=vec3(0,0,3),d=normalize(vec3(u,-1.2)),c=vec3(.97,.96,.93);float t=0.;for(int i=0;i<30;i++){float h=S(o+d*t);if(h<.001||t>5.)break;t+=h;}if(t<5.){vec3 p=o+d*t,e=vec3(.002,0,0),n=normalize(vec3(S(p+e.xyy)-S(p-e.xyy),S(p+e.yxy)-S(p-e.yxy),S(p+e.yyx)-S(p-e.yyx)));c=mix(vec3(.92,.88,.85),vec3(.96,.85,.82),D)*(.4+.6*max(dot(n,vec3(.4,.8,.4)),0.))+vec3(.98,.95,.92)*pow(1.-max(-dot(d,n),0.),3.)*.5;}gl_FragColor=vec4(c,1);}');x.linkProgram(P);x.useProgram(P);B=x.createBuffer();x.bindBuffer(34962,B);x.bufferData(34962,new Float32Array([-1,-1,1,-1,-1,1,1,1]),35044);x.enableVertexAttribArray(0);x.vertexAttribPointer(0,2,5126,0,0,0);uR=x.getUniformLocation(P,'R');uT=x.getUniformLocation(P,'T');uM=x.getUniformLocation(P,'M');uD=x.getUniformLocation(P,'D');X=Y=tx=ty=d=A=G=0;N=[216,288,324,432,576,648,864];S=f=>{A=A||new AudioContext;A.resume();o=A.createOscillator();g=A.createGain();o.frequency.value=f;g.gain.value=.1;o.connect(g).connect(A.destination);o.start();g.gain.exponentialRampToValueAtTime(1e-4,A.currentTime+1.5)};I=(e,s)=>{p=e.touches?e.touches[0]:e;if(!p)return;tx=p.clientX/innerWidth*2-1;ty=-(p.clientY/innerHeight)*2+1;d=1;s&&S(N[0|(p.clientX/innerWidth)*7])};onmousedown=e=>I(e,G=1);onmousemove=e=>G&&I(e);onmouseup=()=>G=0;ontouchstart=e=>I(e,G=1);ontouchmove=e=>G&&I(e);ontouchend=()=>G=0;t0=performance.now();(L=()=>{t=(performance.now()-t0)*.001;X+=(tx-X)*.05;Y+=(ty-Y)*.05;d*=.95;x.uniform2f(uR,g.width,g.height);x.uniform1f(uT,t);x.uniform2f(uM,X,Y);x.uniform1f(uD,d);x.drawArrays(5,0,4);requestAnimationFrame(L)})();b.onclick=()=>navigator.clipboard.writeText('data:text/html,'+encodeURIComponent(document.documentElement.outerHTML.replace(/\s+/g,' ')));</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>zebble</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #f7f4ee;
+      color: #33322e;
+      font-family: serif, system-ui, -apple-system;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2rem 1.5rem;
+      user-select: none;
+    }
+    header { text-align: center; z-index: 10; }
+    h1 { font-weight: 400; font-size: 1.4rem; letter-spacing: -0.04em; color: #2b2a26; margin-bottom: 0.3rem; }
+    p { font-size: 0.85rem; color: #8c887d; letter-spacing: -0.01em; }
+    #c { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; }
+    canvas { width: 100%; height: 100%; display: block; }
+    footer { z-index: 10; display: flex; gap: 1rem; align-items: center; }
+    button {
+      background: #ffffff90;
+      backdrop-filter: blur(8px);
+      border: 1px solid #e0dad0;
+      padding: 0.6rem 1.2rem;
+      border-radius: 99px;
+      color: #4a473f;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+    button:hover { background: #ffffff; border-color: #b0a898; transform: translateY(-1px); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>zebble</h1>
+    <p>drag to rotate &amp; deform &bull; touch to play 432hz tones</p>
+  </header>
+
+  <div id="c"><canvas id="gl"></canvas></div>
+
+  <footer>
+    <button id="cb">copy data uri</button>
+  </footer>
+
+  <script>
+    const C = document.getElementById('gl');
+    const gl = C.getContext('webgl');
+
+    const R = () => {
+      C.width = window.innerWidth;
+      C.height = window.innerHeight;
+      gl.viewport(0, 0, C.width, C.height);
+    };
+    window.addEventListener('resize', R);
+    R();
+
+    const vs = "attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}";
+    const fs = "precision highp float;uniform vec2 R,M;uniform float T,D;mat2 r(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}float S(vec3 p){p.yz*=r(M.y*2.0);p.xz*=r(M.x*2.0);return(length(p/vec3(1.1,0.8,1.0))-0.85+sin(p.x*3.0+T)*cos(p.y*3.0+T)*sin(p.z*3.0)*(0.15+D*0.2))*0.7;}void main(){vec2 u=(gl_FragCoord.xy-0.5*R)/min(R.x,R.y);vec3 o=vec3(0.0,0.0,3.0),d=normalize(vec3(u,-1.2));float t=0.0;for(int i=0;i<48;i++){float h=S(o+d*t);if(h<0.001||t>5.0)break;t+=h;}vec3 c=vec3(0.968,0.956,0.933);if(t<5.0){vec3 p=o+d*t,e=vec3(0.002,0.0,0.0),n=normalize(vec3(S(p+e.xyy)-S(p-e.xyy),S(p+e.yxy)-S(p-e.yxy),S(p+e.yyx)-S(p-e.yyx))),L=normalize(vec3(1.0,2.0,2.0));float df=max(dot(n,L),0.0),rm=pow(1.0-max(dot(-d,n),0.0),3.0);c=mix(vec3(0.92,0.88,0.85),vec3(0.96,0.85,0.82),D)*(0.4+0.6*df)+vec3(0.98,0.95,0.92)*rm*0.5;}gl_FragColor=vec4(c,1.0);}";
+
+    const P = gl.createProgram();
+    const cS = (t, s) => { const h = gl.createShader(t); gl.shaderSource(h, s); gl.compileShader(h); gl.attachShader(P, h); };
+    cS(35633, vs);
+    cS(35632, fs);
+    gl.linkProgram(P);
+    gl.useProgram(P);
+
+    const B = gl.createBuffer();
+    gl.bindBuffer(34962, B);
+    gl.bufferData(34962, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), 35044);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, 5126, !1, 0, 0);
+
+    const uR = gl.getUniformLocation(P, 'R'), uT = gl.getUniformLocation(P, 'T'), uM = gl.getUniformLocation(P, 'M'), uD = gl.getUniformLocation(P, 'D');
+    let mx = 0, my = 0, tx = 0, ty = 0, df = 0, isD = !1, A = null;
+    const N = [216, 288, 324, 432, 576, 648, 864];
+
+    const pT = f => {
+      if(!A) A = new (window.AudioContext || window.webkitAudioContext)();
+      if(A.state === 'suspended') A.resume();
+      const o = A.createOscillator(), g = A.createGain(), n = A.currentTime;
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0, n);
+      g.gain.linearRampToValueAtTime(0.12, n + 0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001, n + 1.8);
+      o.connect(g); g.connect(A.destination);
+      o.start(n); o.stop(n + 1.8);
+    };
+
+    const uI = (x, y, s = !1) => {
+      tx = (x / window.innerWidth) * 2 - 1;
+      ty = -(y / window.innerHeight) * 2 + 1;
+      df = 1.0;
+      if (s) pT(N[Math.floor((x / window.innerWidth) * N.length) % N.length]);
+    };
+
+    window.addEventListener('mousedown', e => { isD = !0; uI(e.clientX, e.clientY, !0); });
+    window.addEventListener('mousemove', e => { if (isD) uI(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', () => isD = !1);
+
+    window.addEventListener('touchstart', e => { isD = !0; if (e.touches[0]) uI(e.touches[0].clientX, e.touches[0].clientY, !0); });
+    window.addEventListener('touchmove', e => { if (isD && e.touches[0]) uI(e.touches[0].clientX, e.touches[0].clientY); });
+    window.addEventListener('touchend', () => isD = !1);
+
+    let t0 = performance.now();
+    const ren = () => {
+      const t = (performance.now() - t0) * 0.001;
+      mx += (tx - mx) * 0.05;
+      my += (ty - my) * 0.05;
+      df *= 0.95;
+      gl.uniform2f(uR, C.width, C.height);
+      gl.uniform1f(uT, t);
+      gl.uniform2f(uM, mx, my);
+      gl.uniform1f(uD, df);
+      gl.drawArrays(5, 0, 4);
+      requestAnimationFrame(ren);
+    };
+    ren();
+
+    document.getElementById('cb').addEventListener('click', () => {
+      const h = document.documentElement.outerHTML.replace(/\n/g, '').replace(/\s+/g, ' ').replace(/> </g, '><');
+      const uri = 'data:text/html;charset=utf-8,' + encodeURIComponent(h);
+      navigator.clipboard.writeText(uri).then(() => {
+        const b = document.getElementById('cb');
+        b.innerText = 'copied data uri!';
+        setTimeout(() => b.innerText = 'copy data uri', 2000);
+      });
+    });
+  </script>
+</body>
+</html>
